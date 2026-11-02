@@ -26,6 +26,7 @@ IHardwareOpusDecoderManager::IHardwareOpusDecoderManager(Core::System& system_)
         {7, D<&IHardwareOpusDecoderManager::GetWorkBufferSizeForMultiStreamEx>, "GetWorkBufferSizeForMultiStreamEx"},
         {8, D<&IHardwareOpusDecoderManager::GetWorkBufferSizeExEx>, "GetWorkBufferSizeExEx"},
         {9, D<&IHardwareOpusDecoderManager::GetWorkBufferSizeForMultiStreamExEx>, "GetWorkBufferSizeForMultiStreamExEx"},
+        {100, D<&IHardwareOpusDecoderManager::GetWorkBufferSizeNx2>, "GetWorkBufferSizeNx2"},
     };
     // clang-format on
     RegisterHandlers(functions);
@@ -153,6 +154,23 @@ Result IHardwareOpusDecoderManager::GetWorkBufferSizeForMultiStreamExEx(
     Out<u32> out_size, InLargeData<OpusMultiStreamParametersEx, BufferAttr_HipcPointer> params) {
     R_TRY(impl.GetWorkBufferSizeForMultiStreamExEx(*params, *out_size));
     LOG_DEBUG(Service_Audio, "size {:#x}", *out_size);
+    R_SUCCEED();
+}
+
+// Switch 2 (nx2): command 100 is not present on the original Switch. The game calls it right
+// before creating its Opus decoder and expects a single u32 back. Judging by how the game uses it,
+// this is most likely a "work buffer size" query, so answer with a size that is large enough for the
+// biggest common configuration (48 kHz stereo, large frame size). The real input layout is not
+// known yet and is intentionally ignored.
+Result IHardwareOpusDecoderManager::GetWorkBufferSizeNx2(Out<u32> out_size) {
+    OpusParametersEx params{
+        .sample_rate = 48000,
+        .channel_count = 2,
+        .use_large_frame_size = true,
+    };
+    R_TRY(impl.GetWorkBufferSizeEx(params, *out_size));
+    LOG_WARNING(Service_Audio, "(STUBBED) hwopus command 100 called, returning size {:#x}",
+                *out_size);
     R_SUCCEED();
 }
 
